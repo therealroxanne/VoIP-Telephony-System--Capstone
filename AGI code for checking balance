@@ -1,0 +1,51 @@
+#!/usr/bin/php
+<?php
+
+
+$callerID=  $_SERVER['argv'][1];
+echo "Caller is $callerID \n";
+
+
+// Connect to MySQL database
+$servername = "localhost";
+$username = "asterisk";
+$password = "YouNeedAReallyGoodPasswordHereToo";
+$dbname = "asterisk";
+
+
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+// Check connection
+if ($conn->connect_error) {
+    echo "Failed to connect to MySQL: " . $conn->connect_error . "\n";
+    exit(1);
+}
+
+// Query to retrieve user's credit balance
+$query = "SELECT balance FROM credit_balance WHERE username = '$callerID'";
+$result = $conn->query($query);
+
+// Check if the query was successful
+if ($result) {
+    // Check if any rows were returned
+    if ($result->num_rows > 0) {
+        $row = $result->fetch_assoc();
+        $creditBalance = $row['balance'];
+
+        list($dollars, $cents) = explode('.', $creditBalance);
+
+
+        $dollarsint = floor($dollars);
+        $centsint = floor($cents);
+        echo"SET VARIABLE DOLLARS $dollarsint\n";
+        echo"SET VARIABLE CENTS $centsint\n";
+
+    } else {
+        $notregistered=0;
+        echo"SET VARIABLE NONE $notregistered\n";
+  }
+} else {
+    echo"No balance found \n";
+}
+
+?>
