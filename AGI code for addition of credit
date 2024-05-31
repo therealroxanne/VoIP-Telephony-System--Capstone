@@ -1,3 +1,5 @@
+//This code contains the AGI script that allow users to add credit to their account
+
 #!/usr/bin/php
 <?php
 
