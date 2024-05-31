@@ -1,0 +1,64 @@
+#!/usr/bin/php
+<?php
+
+$extensionDialed= $argv[2];
+echo "Extension dialed is $extensionDialed \n";
+
+$callerID=  $argv[1];
+echo "Caller is $callerID \n";
+
+function extractCredit($extension) {
+    $startPos = strpos($extension, '*');
+    $endPos = strpos($extension, '#');
+    $extracted = substr($extension, $startPos + 5, $endPos - $startPos - 1);
+    $credit = intval($extracted);
+
+    return $credit;
+}
+
+$addCredit = extractCredit($extensionDialed);
+
+// Connect to MySQL database
+$servername = "localhost";
+$username = "asterisk";
+$password = "YouNeedAReallyGoodPasswordHereToo";
+$dbname = "asterisk";
+
+$conn = new mysqli($servername, $username, $password, $dbname);
+// Check connection
+if ($conn->connect_error) {
+    echo "Failed to connect to MySQL: " . $conn->connect_error . "\n";
+    exit(1);
+}
+
+// Query to retrieve user's credit balance
+$query = "SELECT balance FROM credit_balance WHERE username = '$callerID'";
+$result = $conn->query($query);
+
+if ($result) {
+   if ($result->num_rows > 0) {
+       $row = $result->fetch_assoc();
+       $creditBalance = $row['balance'];
+
+       if ($addCredit % 100 !== 0) {
+            //$error1=0;
+            echo "SET VARIABLE STATUS 0\n";
+
+        } else {
+            $newBalance = $creditBalance + $addCredit;
+            $sql_update = "UPDATE credit_balance SET balance = $newBalance WHERE username = '$callerID'";
+            if ($conn->query($sql_update) === TRUE) {
+              //  $success =1;
+                echo "SET VARIABLE STATUS 1\n";
+                echo "SET VARIABLE addCredit $addCredit\n";
+
+            } else {
+                echo "SET VARIABLE STATUS 2\n";
+            }
+        }
+
+ }else {
+    echo "SET VARIABLE STATUS 2\n";
+    }
+}
+?>
