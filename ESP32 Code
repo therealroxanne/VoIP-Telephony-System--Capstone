@@ -1,0 +1,189 @@
+//This code contains HTTP POST and GET requests which allows the ESP32 to send temperature and light status data to a Python Flask server in a virtual box. 
+
+#include <Arduino.h>
+#include <WiFi.h>
+#include <LiquidCrystal_I2C.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+
+#define I2C_SDA 21
+#define I2C_SCL 22
+#define temp_pin 18
+#define light_pin 15
+#define led_pin 26
+
+LiquidCrystal_I2C lcd(0x27, 16, 2); // set the LCD address to 0x27 for a 16 chars and 2 line display
+
+OneWire oneWire(temp_pin);
+DallasTemperature sensors(&oneWire);
+
+//Flask server
+const char* serverName= "http://192.168.1.106:7000/api/post";
+const char* serverName2= "http://192.168.1.106:7000/api/light_status";
+
+//WIFI setup
+const char* ssid = "linksys";//"linksys";
+const char* password = "";//"qnfmgxRgp3mh";//"";
+
+bool light_status;
+
+void setup(){
+
+  pinMode(light_pin, OUTPUT);
+ // digitalWrite(light_pin, LOW);
+
+  pinMode(led_pin,OUTPUT);
+
+	lcd.init(I2C_SDA, I2C_SCL); // initialize the lcd to use user defined I2C pins
+	lcd.backlight();
+	lcd.setCursor(3,0);
+	lcd.print("VoIP IPTS");
+	lcd.setCursor(1,1);
+	lcd.print("ROOM MONITORING");
+  delay(2000); // Wait for 2 seconds to display the text
+  lcd.clear();
+  sensors.begin();
+
+  //Connect WiFi
+  Serial.begin(9600);
+  sensors.begin();
+  WiFi.begin(ssid, password);
+
+  Serial.println("Connecting");
+  while(WiFi.status() != WL_CONNECTED) 
+  {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.print("Connected to WiFi network with IP Address: ");
+  Serial.println(WiFi.localIP());
+}
+
+void set_parameters()
+{
+  sensors.requestTemperatures(); 
+  float temp_reading = sensors.getTempCByIndex(0);
+  lcd.setCursor(0,0);
+  lcd.print("Temp: ");
+  lcd.setCursor(7,0);
+  lcd.print(temp_reading);
+  lcd.setCursor(13,0);
+  lcd.print("C");
+
+  light_status= digitalRead(light_pin);
+  if (light_status==true)
+  {
+    lcd.setCursor(1,1);
+    lcd.print("Light: On ");
+  }
+  else
+  {
+    lcd.setCursor(1,1);
+    lcd.print("Light: Off");
+  }
+
+  //const size_t capacity = JSON_OBJECT_SIZE(10);
+  StaticJsonDocument<96> doc;
+  doc["temperature"]= temp_reading;
+  doc["light"]= light_status;
+
+  char jsonString[256];
+  serializeJson(doc,jsonString);
+
+
+  HTTPClient http;
+
+  http.begin(serverName);
+
+  http.addHeader("Content-type", "application/json");
+
+  int httpResponseCode = http.POST(jsonString);
+  if(httpResponseCode>0)
+  {
+    Serial.print("HTTP Response Code: ");
+    Serial.println(httpResponseCode);
+
+    for (int i = 0; i < 3; i++) 
+    { // Blink the LED 3 times
+      digitalWrite(led_pin, HIGH);
+      delay(250);
+      digitalWrite(led_pin, LOW);
+      delay(250);
+    }
+  }
+  else
+  {
+    Serial.print("Error: ");
+    Serial.println(httpResponseCode);
+  }
+  http.end();
+}
+
+void change_light()
+{
+   HTTPClient http;
+  
+  // Send GET request to server to get light status
+  http.begin(serverName2);
+  String httpresponse;
+  int httpResponseCode = http.GET();
+  
+  if (httpResponseCode > 0) {
+      Serial.println("Response code:");
+      Serial.println(httpResponseCode);
+      Serial.print("Response from server");
+      httpresponse=http.getString();
+      Serial.println(httpresponse);
+
+  } else {
+    // If GET request failed
+    Serial.print("Error getting light status: ");
+    Serial.println(httpResponseCode);
+  }
+  
+  http.end();
+
+  StaticJsonDocument<192> doc;
+
+  DeserializationError error = deserializeJson(doc, httpresponse);
+
+  if (error) {
+    Serial.print("deserializeJson() failed: ");
+    Serial.println(error.c_str());
+    return;
+  }
+
+  bool light = doc["light_status"]; // true
+
+  Serial.println("Light: ");
+  Serial.println(light);
+  
+  if (light==1)
+  {
+    digitalWrite(light_pin,HIGH);
+    lcd.setCursor(1,1);
+    lcd.print("Light: On ");
+  }
+  else
+  {
+    digitalWrite(light_pin,LOW);
+    lcd.setCursor(1,1);
+    lcd.print("Light: Off");
+  }
+ 
+}
+
+void loop() {
+
+  set_parameters();
+  change_light();
+  //digitalWrite(led_pin,HIGH);
+  //delay(1000);
+  //digitalWrite(led_pin,HIGH);
+  delay(2000);
+    
+}
+
