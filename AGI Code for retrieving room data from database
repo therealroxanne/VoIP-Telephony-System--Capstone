@@ -1,0 +1,70 @@
+#!/usr/bin/php
+<?php
+
+
+$stdin = fopen('php://stdin', 'r');
+// Asterisk AGI environment variables
+while (!feof($agi)) {
+    $line = trim(fgets($agi));
+    if ($line === '') {
+        break;
+    }
+    list($key, $value) = explode(': ', $line);
+    $agi_vars[$key] = $value;
+}
+
+fclose($stdin);
+
+// Connect to MySQL database
+$servername = "localhost";
+$username = "asterisk";
+$password = "YouNeedAReallyGoodPasswordHereToo";
+$dbname = "asterisk";
+
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+// Check connection
+if ($conn->connect_error) {
+    echo "Failed to connect to MySQL: " . $conn->connect_error . "\n";
+    exit(1);
+}
+
+// Retrieve temperature data from database
+$sql = "SELECT temperature FROM temperature ORDER BY id DESC LIMIT 1";
+$result = $conn->query($sql);
+
+if ($result->num_rows > 0) {
+    // Output data of each row
+    $row = $result->fetch_assoc();
+    $temperature = $row["temperature"];
+
+    list($wholenum, $decimal) = explode('.', $temperature);
+    $wholenumint = floor($wholenum);
+    $decimalint = floor($decimal);
+    echo"SET VARIABLE WHOLENUMBER $wholenumint\n";
+    echo"SET VARIABLE DECIMAL $decimalint\n";
+
+} else {
+    echo "SET VARIABLE TEMP 0\n";
+}
+
+// Retrieve light status data from database
+$sql = "SELECT light FROM temperature ORDER BY id DESC LIMIT 1";
+$result = $conn->query($sql);
+
+if ($result->num_rows > 0) {
+         // Output data of each row
+    $row = $result->fetch_assoc();
+    $light_status = $row["light"];
+
+    if ($light_status == 1){
+        echo "SET VARIABLE LIGHT_STATUS on\n";
+    } else {
+        echo "SET VARIABLE LIGHT_STATUS off\n";
+    }
+} else {
+    echo "SET VARIABLE LIGHT_STATUS unknown\n";
+}
+
+$conn->close();
+                                                                       
