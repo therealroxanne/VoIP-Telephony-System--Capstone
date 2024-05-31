@@ -1,3 +1,5 @@
+//This AGI code takes the temperature value and light status from the mysql database and sends it to the dialplan
+
 #!/usr/bin/php
 <?php
 
