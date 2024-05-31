@@ -1,3 +1,5 @@
+//This code contains an AGI script that retrieves the user balance from the mysql database and sends it to the dialplan
+
 #!/usr/bin/php
 <?php
 
