@@ -1,0 +1,64 @@
+///This code contains an AGI script that takes the user input from the Dialplan and sends it to the database to be retrieved by the Flask server
+
+
+#!/usr/bin/php
+<?php
+
+// Extracting the input value
+
+$light_action = $argv[1];
+
+// Convert user input to boolean value
+if ($light_action == '1') {
+    $light_status_bool = 1;  // True
+} else {
+    $light_status_bool = 0;  // False
+}
+
+// Connect to MySQL database
+$servername = "localhost";
+$username = "asterisk";
+$password = "YouNeedAReallyGoodPasswordHereToo";
+$dbname = "asterisk";
+
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+// Check connection
+if ($conn->connect_error) {
+    echo "Failed to connect to MySQL: " . $conn->connect_error . "\n";
+    exit(1);
+}
+
+// Retrieve the last inserted primary key value
+$sql_last_id = "SELECT MAX(id) AS max_id FROM light_status";
+$result_last_id = $conn->query($sql_last_id);
+
+if ($result_last_id->num_rows > 0) {
+    $row_last_id = $result_last_id->fetch_assoc();
+    $last_id = $row_last_id["max_id"];
+} else {
+    // Handle error or default value if no rows exist
+    $last_id = 0;
+}
+
+// Increment the last ID to get the ID for the new row
+$new_id = $last_id + 1;
+
+
+// Insert data into the table using the new ID
+$sql_insert = "INSERT INTO light_status (id, status) VALUES ('$new_id', '$light_status_bool')";
+
+if ($conn->query($sql_insert) === TRUE) {
+    echo "New record inserted successfully\n";
+    echo "SET VARIABLE RESULT 1\n"; // Send AGI output
+} else {
+    echo "Error inserting record: " . $conn->error . "\n";
+    echo "SET VARIABLE RESULT 0\n"; // Send AGI output
+}
+
+
+$conn->close();
+
+?>
+
+
